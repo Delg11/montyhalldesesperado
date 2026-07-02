@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monty Hall - Porta dos Desesperados</title>
+    <style>
+        :root {
+            --primary: #ffcc00;
+            --door-brown: #8b4513;
+            --bg-color: #2c3e50;
+        }
+
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            text-align: center; 
+            background-color: var(--bg-color); 
+            color: white;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container { max-width: 900px; margin: auto; }
+
+        /* Estilização das Portas 3D */
+        .doors-container { 
+            display: flex; 
+            justify-content: center; 
+            gap: 30px; 
+            margin: 50px 0;
+            perspective: 1000px; /* Necessário para efeito 3D */
+        }
+
+        .door-frame {
+            width: 140px;
+            height: 220px;
+            background: #444; /* Fundo dentro da porta */
+            border: 5px solid #1a1a1a;
+            position: relative;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+        }
+
+        .door {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: var(--door-brown);
+            border: 2px solid #5d2e0a;
+            border-radius: 3px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+            color: #ffcc00;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s;
+            transform-origin: left; /* Abre como uma porta real */
+            z-index: 2;
+            backface-visibility: hidden;
+        }
+
+        /* Maçaneta */
+        .door::after {
+            content: '';
+            position: absolute;
+            right: 15px;
+            width: 15px;
+            height: 15px;
+            background: gold;
+            border-radius: 50%;
+            box-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+        }
+
+        /* Efeito de Seleção (Brilho Amarelo) */
+        .door.selected {
+            box-shadow: 0 0 30px var(--primary);
+            border: 4px solid var(--primary);
+        }
+
+        /* Porta Aberta */
+        .door.open {
+            transform: rotateY(-110deg);
+            cursor: default;
+        }
+
+        /* Conteúdo Atrás da Porta */
+        .prize-content { z-index: 1; }
+
+        /* Controles e Mensagens */
+        #message { font-size: 1.5rem; height: 60px; margin-bottom: 20px; color: var(--primary); }
+        
+        .controls { margin-top: 20px; min-height: 60px; }
+        
+        button { 
+            padding: 15px 30px; font-size: 1.1rem; cursor: pointer; border: none; border-radius: 50px;
+            transition: 0.3s; font-weight: bold; text-transform: uppercase; margin: 5px;
+        }
+        
+        .btn-action { background-color: #e74c3c; color: white; box-shadow: 0 4px #c0392b; }
+        .btn-action:hover { transform: translateY(-2px); box-shadow: 0 6px #c0392b; }
+        .btn-action:active { transform: translateY(2px); box-shadow: 0 2px #c0392b; }
+
+        .btn-secondary { background-color: #3498db; color: white; box-shadow: 0 4px #2980b9; }
+
+        /* Tabela de Estatísticas */
+        .stats-area { margin-top: 40px; background: rgba(255,255,255,0.1); padding: 20px; border-radius: 15px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        th { color: var(--primary); }
+        .highlight-win { color: #2ecc71; font-weight: bold; }
+
+        .sim-btn { background-color: #27ae60; color: white; margin-top: 20px; padding: 10px 20px; font-size: 0.9rem; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1 style="color: var(--primary); text-shadow: 2px 2px 4px #000;">PORTA DOS DESESPERADOS</h1>
+    <div id="message">Clique em uma porta para começar!</div>
+
+    <div class="doors-container">
+        <!-- Porta 1 -->
+        <div class="door-frame">
+            <div class="prize-content" id="prize-0">🍕</div>
+            <div class="door" onclick="selectDoor(0)" id="door-0">1</div>
+        </div>
+        <!-- Porta 2 -->
+        <div class="door-frame">
+            <div class="prize-content" id="prize-1">🍕</div>
+            <div class="door" onclick="selectDoor(1)" id="door-1">2</div>
+        </div>
+        <!-- Porta 3 -->
+        <div class="door-frame">
+            <div class="prize-content" id="prize-2">🍕</div>
+            <div class="door" onclick="selectDoor(2)" id="door-2">3</div>
+        </div>
+    </div>
+
+    <div class="controls" id="controls"></div>
+
+    <div class="stats-area">
+        <h3>📊 Registro de Resultados</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Estratégia</th>
+                    <th>Jogos</th>
+                    <th>Vitórias</th>
+                    <th>Derrotas</th>
+                    <th>Taxa de Sucesso</th>
+                </tr>
+            </thead>
+            <tbody id="stats-body">
+                <tr>
+                    <td>Trocou Porta</td><td id="s-t-j">0</td><td id="s-t-v">0</td><td id="s-t-d">0</td><td id="s-t-p" class="highlight-win">0%</td>
+                </tr>
+                <tr>
+                    <td>Manteve Porta</td><td id="s-m-j">0</td><td id="s-m-v">0</td><td id="s-m-d">0</td><td id="s-m-p" class="highlight-win">0%</td>
+                </tr>
+            </tbody>
+        </table>
+        <button class="sim-btn" onclick="runSimulation(1000)">Simular +1000 Jogos Aleatórios</button>
+    </div>
+</div>
+
+<script>
+    let prizeDoor, chosenDoor, openedDoor;
+    let gameState = 'START'; // START, WAITING_DECISION, REVEALED
+    
+    let stats = {
+        switch: { games: 0, wins: 0 },
+        stay: { games: 0, wins: 0 }
+    };
+
+    function initGame() {
+        prizeDoor = Math.floor(Math.random() * 3);
+        gameState = 'START';
+        document.getElementById('message').innerText = "Escolha sua porta da sorte!";
+        document.getElementById('controls').innerHTML = "";
+        
+        for(let i=0; i<3; i++) {
+            const d = document.getElementById(`door-${i}`);
+            d.className = 'door';
+            const prize = document.getElementById(`prize-${i}`);
+            prize.innerText = (i === prizeDoor) ? "🍕" : "🤡"; // Pizza ou Palhaço
+        }
+    }
+
+    function selectDoor(idx) {
+        if (gameState !== 'START') return;
+
+        chosenDoor = idx;
+        gameState = 'ANIMATING'; // Bloqueia cliques
+
+        // Adiciona brilho amarelo na porta escolhida
+        updateGlow(idx);
+
+        document.getElementById('message').innerText = "Humm... interessante...";
+
+        // Monty Hall abre uma porta vazia após um pequeno suspense
+        setTimeout(() => {
+            let options = [0, 1, 2].filter(d => d !== prizeDoor && d !== chosenDoor);
+            openedDoor = options[Math.floor(Math.random() * options.length)];
+
+            document.getElementById(`door-${openedDoor}`).classList.add('open');
+            document.getElementById('message').innerText = `RÁ! Eu abri a porta ${openedDoor + 1} e ela está VAZIA!`;
+            
+            setTimeout(() => {
+                document.getElementById('message').innerText = "Você quer MANTER sua porta ou TROCAR por aquela que sobrou?";
+                document.getElementById('controls').innerHTML = `
+                    <button class="btn-action" onclick="finishGame(true)">TROCAR</button>
+                    <button class="btn-secondary" onclick="finishGame(false)">MANTER</button>
+                `;
+                gameState = 'WAITING_DECISION';
+            }, 1000);
+        }, 1200);
+    }
+
+    function updateGlow(idx) {
+        document.querySelectorAll('.door').forEach(d => d.classList.remove('selected'));
+        document.getElementById(`door-${idx}`).classList.add('selected');
+    }
+
+    function finishGame(switched) {
+        if (gameState !== 'WAITING_DECISION') return;
+        
+        let finalChoice = chosenDoor;
+        if (switched) {
+            // AQUI ESTÁ A CORREÇÃO: O brilho amarelo muda para a nova porta antes de abrir
+            finalChoice = [0, 1, 2].find(d => d !== chosenDoor && d !== openedDoor);
+            updateGlow(finalChoice); 
+            chosenDoor = finalChoice; // Atualiza a escolha
+        }
+
+        document.getElementById('controls').innerHTML = "";
+        document.getElementById('message').innerText = "VAMOS VER O QUE TEM NELA...";
+
+        // Suspense final antes de revelar
+        setTimeout(() => {
+            // Abre a porta do jogador
+            document.getElementById(`door-${finalChoice}`).classList.add('open');
+            
+            // Atualiza estatísticas
+            if (switched) {
+                stats.switch.games++;
+                if (finalChoice === prizeDoor) stats.switch.wins++;
+            } else {
+                stats.stay.games++;
+                if (finalChoice === prizeDoor) stats.stay.wins++;
+            }
+
+            if (finalChoice === prizeDoor) {
+                document.getElementById('message').innerText = "UHUUUL! VOCÊ GANHOU A PIZZA! 🍕🏆";
+            } else {
+                document.getElementById('message').innerText = "IHUUU... PORTA DOS DESESPERADOS! 🤡";
+                // Abre a porta do prêmio também para mostrar onde estava
+                document.getElementById(`door-${prizeDoor}`).classList.add('open');
+            }
+
+            updateStatsTable();
+            document.getElementById('controls').innerHTML = `<button class="btn-secondary" onclick="initGame()">Jogar de Novo</button>`;
+            gameState = 'REVEALED';
+        }, 1500);
+    }
+
+    function updateStatsTable() {
+        // Linha Trocou
+        document.getElementById('s-t-j').innerText = stats.switch.games;
+        document.getElementById('s-t-v').innerText = stats.switch.wins;
+        document.getElementById('s-t-d').innerText = stats.switch.games - stats.switch.wins;
+        document.getElementById('s-t-p').innerText = stats.switch.games > 0 ? Math.round((stats.switch.wins/stats.switch.games)*100) + "%" : "0%";
+        
+        // Linha Manteve
+        document.getElementById('s-m-j').innerText = stats.stay.games;
+        document.getElementById('s-m-v').innerText = stats.stay.wins;
+        document.getElementById('s-m-d').innerText = stats.stay.games - stats.stay.wins;
+        document.getElementById('s-m-p').innerText = stats.stay.games > 0 ? Math.round((stats.stay.wins/stats.stay.games)*100) + "%" : "0%";
+    }
+
+    function runSimulation(iterations) {
+        for(let i=0; i<iterations; i++) {
+            let pDoor = Math.floor(Math.random() * 3);
+            let cDoor = Math.floor(Math.random() * 3);
+            let shouldSwitch = Math.random() > 0.5;
+
+            let oOptions = [0, 1, 2].filter(d => d !== pDoor && d !== cDoor);
+            let oDoor = oOptions[Math.floor(Math.random() * oOptions.length)];
+
+            if(shouldSwitch) {
+                let fChoice = [0, 1, 2].find(d => d !== cDoor && d !== oDoor);
+                stats.switch.games++;
+                if(fChoice === pDoor) stats.switch.wins++;
+            } else {
+                stats.stay.games++;
+                if(cDoor === pDoor) stats.stay.wins++;
+            }
+        }
+        updateStatsTable();
+        alert("Simulação de 1000 jogos aplicada às estatísticas!");
+    }
+
+    initGame();
+</script>
+
+</body>
+</html>
